@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JARVIS</title>
+</head>
+<body>
+  <h1>JARVIS</h1>
+  <input id="message" placeholder="Talk to JARVIS" style="width:80%">
+  <button onclick="send()">Send</button>
+  <pre id="output"></pre>
+<script>
+async function send() {
+  const message = document.getElementById("message").value;
+  const output = document.getElementById("output");
+  output.textContent = "Thinking...";
+  // Fill these two values only in your private deployment.
+  const JARVIS_URL = "PASTE_WORKER_URL_HERE";
+  const CLIENT_TOKEN = "PASTE_CLIENT_TOKEN_HERE";
+  const r = await fetch(JARVIS_URL + "/v1/chat", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "authorization": "Bearer " + CLIENT_TOKEN
+    },
+    body: JSON.stringify({message})
+  });
+  const data = await r.json();
+  output.textContent = data.reply || data.error || "No response";
+}
+</script>
+</body>
+</html>
