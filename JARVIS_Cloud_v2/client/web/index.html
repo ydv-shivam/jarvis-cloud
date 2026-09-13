@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS Cloud</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0b1020;color:#f5f7ff}
+.wrap{max-width:850px;margin:auto;padding:20px}
+.card{background:#121a2e;border:1px solid #27324d;border-radius:18px;padding:16px;margin:14px 0}
+h1{margin:0}.muted{opacity:.7;font-size:13px}
+input,textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #33405f;background:#0d1426;color:white;margin-top:7px}
+textarea{min-height:90px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 16px;margin-top:10px;font-weight:700;cursor:pointer}
+.msg{padding:12px 14px;border-radius:14px;margin:9px 0;white-space:pre-wrap;line-height:1.45;background:#172039}
+.you{background:#1b2947;margin-left:10%}
+.error{color:#ffb4b4;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>JARVIS Cloud</h1>
+<div class="card">
+<div class="muted">Initial device setup</div>
+<label>JARVIS Client Token</label>
+<input id="token" type="password" placeholder="Paste your client token">
+<div class="muted">For initial private testing. We will add stronger authentication later.</div>
+<button id="save">Save token</button>
+<button id="clear">Clear</button>
+</div>
+<div class="card">
+<div id="chat" class="muted">JARVIS is ready.</div>
+<textarea id="message" placeholder="Talk to JARVIS..."></textarea>
+<button id="send">Send</button>
+<div id="error" class="error"></div>
+</div>
+</div>
+<script>
+const token=document.getElementById("token"), message=document.getElementById("message");
+const chat=document.getElementById("chat"), error=document.getElementById("error");
+token.value=localStorage.getItem("jarvis_client_token")||"";
+function add(who,text,cls){const e=document.createElement("div");e.className="msg "+cls;e.textContent=who+": "+text;chat.appendChild(e);chat.scrollTop=chat.scrollHeight;}
+save.onclick=()=>{localStorage.setItem("jarvis_client_token",token.value.trim());error.textContent="Token saved.";};
+clear.onclick=()=>{localStorage.removeItem("jarvis_client_token");token.value="";};
+send.onclick=async()=>{
+ error.textContent="";
+ const t=token.value.trim(), m=message.value.trim();
+ if(!t){error.textContent="Enter your client token first.";return;}
+ if(!m)return;
+ add("You",m,"you"); message.value="";
+ try{
+  const r=await fetch("/v1/chat",{method:"POST",headers:{"Authorization":"Bearer "+t,"Content-Type":"application/json"},body:JSON.stringify({message:m})});
+  const d=await r.json(); if(!r.ok)throw Error(d.error||"Request failed");
+  add("JARVIS",d.reply||"(No reply)","jarvis");
+ }catch(e){error.textContent=e.message||String(e);}
+};
+</script>
+</body>
+</html>

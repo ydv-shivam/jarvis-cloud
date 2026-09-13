@@ -1,0 +1,7 @@
+{
+  "name": "jarvis-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {"deploy": "wrangler deploy", "dev": "wrangler dev"},
+  "devDependencies": {"typescript": "latest", "wrangler": "latest"}
+}
