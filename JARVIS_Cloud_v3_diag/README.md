@@ -1,40 +1,29 @@
-# JARVIS Cloud v3 — OpenAI Diagnostic Package
+# JARVIS Cloud v3 — Final OpenAI Diagnostic
 
-This is a temporary diagnostic build for the existing `jarvis-cloud` Worker.
-
-## What changed
-
-- Keeps `JARVIS_CLIENT_TOKEN` and `OPENAI_API_KEY` hidden.
-- Logs only safe OpenAI error metadata to Cloudflare logs:
-  - HTTP status
-  - OpenAI request ID
-  - error type
-  - error code
-  - error message
-- The browser UI displays the same safe diagnostic information when OpenAI rejects a request.
-- It does **not** display or log the API key or client token.
+This build is for diagnosing the current OpenAI HTTP 400 response.
 
 ## Cloudflare settings
+- Worker name: `jarvis-cloud`
+- GitHub root directory: `/JARVIS_Cloud_v3_diag/worker`
+- Build/deploy command: `npx wrangler deploy`
 
-Worker name: `jarvis-cloud`
+## Secrets
+Keep the existing Cloudflare Worker secrets. Do not put them in this repository.
 
-Root directory:
-`/JARVIS_Cloud_v3_diag/worker`
-
-Deploy command:
-`npx wrangler deploy`
-
-Required secrets (already configured on the Worker):
 - `JARVIS_CLIENT_TOKEN`
 - `OPENAI_API_KEY`
 
-## After deployment
+## What changed
+- Uses the simplest Responses API `input` form.
+- Keeps model `gpt-5.6`.
+- If OpenAI rejects the request, the UI and Worker logs report safe diagnostic information: HTTP status, request ID, content type, body length, error type/code/message, and a short redacted response excerpt.
+- API keys and client tokens are never logged or returned.
 
-Open the JARVIS page, enter/save the existing client token, and send a simple message such as `hello jarvis`.
+## Tail
+After deployment:
 
-The page will show a `Diagnostic` section if OpenAI rejects the request.
+```powershell
+npx.cmd wrangler tail jarvis-cloud --format pretty
+```
 
-You can also run:
-`npx.cmd wrangler tail jarvis-cloud --format pretty`
-
-Never paste an API key or client token into chat.
+Then send `hello jarvis` once from the JARVIS page.

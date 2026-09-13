@@ -15,7 +15,19 @@ function authorized(request: Request, env: Env): boolean {
   return (request.headers.get("authorization") || "") === `Bearer ${env.JARVIS_CLIENT_TOKEN}`;
 }
 
-function safeOpenAIError(raw: string): { type?: string; code?: string; message?: string } {
+function redact(text: string): string {
+  return text
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[REDACTED_API_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]{8,}/gi, "Bearer [REDACTED]");
+}
+
+function safeOpenAIError(raw: string): {
+  type?: string;
+  code?: string;
+  message?: string;
+  raw_excerpt?: string;
+} {
+  const cleaned = redact(raw).slice(0, 1200);
   try {
     const parsed = JSON.parse(raw) as {
       error?: { type?: unknown; code?: unknown; message?: unknown };
@@ -24,10 +36,11 @@ function safeOpenAIError(raw: string): { type?: string; code?: string; message?:
     return {
       type: typeof error?.type === "string" ? error.type : undefined,
       code: typeof error?.code === "string" ? error.code : undefined,
-      message: typeof error?.message === "string" ? error.message : undefined,
+      message: typeof error?.message === "string" ? redact(error.message) : undefined,
+      raw_excerpt: cleaned || undefined,
     };
   } catch {
-    return {};
+    return { raw_excerpt: cleaned || undefined };
   }
 }
 
@@ -67,36 +80,37 @@ export default {
       return json({ error: "message must be a non-empty string" }, 400);
     }
 
+    // Use the simplest valid Responses API input form for diagnosis.
+    const openAIRequestBody = {
+      model: "gpt-5.6",
+      input: body.message.trim(),
+    };
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "authorization": `Bearer ${env.OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: "gpt-5.6",
-        input: [
-          {
-            role: "system",
-            content: "You are JARVIS, a safe personal AI assistant. Answer clearly. Do not execute external actions in this v1.",
-          },
-          { role: "user", content: body.message.trim() },
-        ],
-      }),
+      body: JSON.stringify(openAIRequestBody),
     });
 
     if (!response.ok) {
       const raw = await response.text();
       const safe = safeOpenAIError(raw);
       const requestId = response.headers.get("x-request-id") || undefined;
+      const contentType = response.headers.get("content-type") || undefined;
 
-      // Safe diagnostics only: never log or return the API key/token.
+      // Safe diagnostics only. Never log or return the API key or client token.
       console.error("JARVIS OpenAI provider error", {
         status: response.status,
         request_id: requestId,
+        content_type: contentType,
+        body_length: raw.length,
         type: safe.type,
         code: safe.code,
         message: safe.message,
+        raw_excerpt: safe.raw_excerpt,
       });
 
       return json(
@@ -105,9 +119,12 @@ export default {
           diagnostic: {
             status: response.status,
             request_id: requestId,
+            content_type: contentType,
+            body_length: raw.length,
             type: safe.type,
             code: safe.code,
             message: safe.message,
+            raw_excerpt: safe.raw_excerpt,
           },
         },
         502,
