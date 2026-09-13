@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS Cloud — Diagnostic</title>
+<style>
+body{font-family:system-ui;margin:0;background:#111;color:#eee}
+main{max-width:760px;margin:auto;padding:24px}
+input,button{font-size:16px;padding:12px;border-radius:10px;border:1px solid #555;background:#222;color:#fff}
+input{width:100%;box-sizing:border-box}button{margin-top:10px;cursor:pointer}
+#status{margin:16px 0;padding:12px;border-radius:10px;background:#1d1d1d}
+#chat{white-space:pre-wrap;margin-top:16px}
+#diagnostic{white-space:pre-wrap;margin-top:12px;padding:12px;border-radius:10px;background:#241b1b}
+</style>
+</head>
+<body>
+<main>
+<h1>JARVIS Cloud</h1>
+<div id="status">Checking cloud secrets…</div>
+<input id="token" type="password" placeholder="JARVIS client token">
+<button id="save">Save token</button>
+<div id="chat"></div>
+<div id="diagnostic"></div>
+<input id="msg" placeholder="Message JARVIS">
+<button id="send">Send</button>
+</main>
+<script>
+const token=document.getElementById('token');
+const chat=document.getElementById('chat');
+const diagnostic=document.getElementById('diagnostic');
+token.value=localStorage.getItem('jarvis_client_token')||'';
+
+async function health(){
+  try{
+    const d=await (await fetch('/health')).json();
+    document.getElementById('status').textContent=`Cloud: ${d.status} | Client secret: ${d.auth_secret_present?'present':'MISSING'} | OpenAI secret: ${d.openai_secret_present?'present':'MISSING'}`;
+  }catch(e){document.getElementById('status').textContent='Cloud check failed';}
+}
+
+document.getElementById('save').onclick=()=>{
+  localStorage.setItem('jarvis_client_token',token.value);
+  health();
+};
+
+document.getElementById('send').onclick=async()=>{
+  chat.textContent='';
+  diagnostic.textContent='';
+  const message=document.getElementById('msg').value;
+  const t=localStorage.getItem('jarvis_client_token')||token.value;
+  try{
+    const r=await fetch('/v1/chat',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':'Bearer '+t},
+      body:JSON.stringify({message})
+    });
+    const d=await r.json();
+    if(d.reply){chat.textContent=d.reply;return;}
+    chat.textContent=d.error||JSON.stringify(d);
+    if(d.diagnostic){
+      diagnostic.textContent='Diagnostic:\n'+JSON.stringify(d.diagnostic,null,2);
+    }
+  }catch(e){
+    chat.textContent='Request failed';
+    diagnostic.textContent=String(e);
+  }
+};
+
+health();
+</script>
+</body>
+</html>
